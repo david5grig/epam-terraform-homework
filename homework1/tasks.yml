@@ -1,0 +1,77 @@
+---
+- hosts: localhost
+  tasks:
+   - name: Install nginx
+     apt:
+       name: nginx
+       state: present
+     become: true
+ 
+   - name: Install MySQL
+     apt:
+       name: mysql-server
+       state: present
+     become: true
+
+   - name: Instal php-fpm and php-mysql 
+     apt:
+       name: 
+         - php-fpm
+         - php-mysql
+       state: present      
+     become: true
+
+   - name: download and unarchive wordpress
+     unarchive:
+       src: http://wordpress.org/latest.tar.gz
+       dest: /var/www/html/wordpress/
+       remote_src: true
+     become: true
+   
+   - name: install python requiarments for mysql modules
+     pip:
+       name: PyMySQL
+       state: present
+
+   - name: Create a new database with name wordpress_db
+     mysql_db:
+       login_unix_socket: /var/run/mysqld/mysqld.sock
+       name: 'wordpress_db'
+       state: present
+     become: true  
+
+   - name: Create a new user with name wordpress_user
+     mysql_user:
+       login_unix_socket: /var/run/mysqld/mysqld.sock
+       name: wordpress_user
+       password: '12345'
+       state: present
+       priv: 'wordpress_db.*:ALL,GRANT'
+     become: true  
+
+   - name: CHOWN wordpress folder
+     file:
+       path: /var/www/html/wordpress
+       owner: www-data
+       group: www-data
+     become: true
+
+   - name: copy WP sample config to config
+     copy:
+       src:  /home/david/Projets/git-ansible/playbooks_with_roles/roles/install_wordpress/files/php.conf
+       dest: /var/www/html/wordpress/wp-config.php
+       owner: www-data
+       group: www-data
+     become: true
+
+   - name: upload nginx config
+     copy:
+       src: /home/david/Projets/git-ansible/playbooks_with_roles/roles/install_nginx/files/nginx.conf
+       dest: /etc/nginx/sites-enabled/wordpress
+     become: true   
+
+   - name: restart nginx
+     service:
+       name: nginx
+       state: restarted
+     become: true
